@@ -3,6 +3,7 @@ import { createHTTPServer } from '@trpc/server/adapters/standalone';
 import superjson from 'superjson';
 import { z } from 'zod';
 import { suspendRunner } from './runner/runner.js';
+import { pauseDemoSyncs } from './background/pauseDemoSyncs.js';
 
 export const t = initTRPC.create({
     transformer: superjson
@@ -37,3 +38,6 @@ function idleProcedure() {
         return { status: 'ok' };
     });
 }
+
+// Background tasks
+pauseDemoSyncs();

@@ -407,6 +407,41 @@ export const getSyncsByProviderConfigAndSyncNames = async (environment_id: numbe
     return results;
 };
 
+export const getDemoSyncsToPause = async (): Promise<{ provider_config_key: string; environment_id: string; connection_id: string; sync_name: string }[]> => {
+    // get all the syncs in dev environments that are running and haven't been updated in the last 7 days
+    const threshold = new Date();
+    threshold.setDate(threshold.getDate() - 7);
+    const results = await db.knex
+        .withSchema(db.schema())
+        .select(
+            `${TABLE}.name`,
+            `_nango_connections.connection_id`,
+            `_nango_connections.provider_config_key`,
+            `_nango_connections.environment_id`,
+            `_nango_sync_schedules.updated_at`
+        )
+        .from<Sync>(TABLE)
+        .join('_nango_connections', '_nango_connections.id', `${TABLE}.nango_connection_id`)
+        .join('_nango_sync_schedules', '_nango_sync_schedules.sync_id', `${TABLE}.id`)
+        .join('_nango_environments', '_nango_environments.id', `_nango_connections.environment_id`)
+        .where({
+            provider_config_key: 'demo-github-integration',
+            [`_nango_connections.deleted`]: false,
+            [`${TABLE}.deleted`]: false,
+            [`_nango_sync_schedules.status`]: 'RUNNING',
+            [`_nango_environments.name`]: 'dev'
+        })
+        .where('_nango_sync_schedules.updated_at', '<=', threshold.toISOString());
+    return results.map((entry) => {
+        return {
+            provider_config_key: entry.provider_config_key as string,
+            environment_id: entry.environment_id as string,
+            connection_id: entry.connection_id as string,
+            sync_name: entry.sync_name as string
+        };
+    });
+};
+
 /**
  * Verify Ownership
  * @desc verify that the incoming account id matches with the provided nango connection id
