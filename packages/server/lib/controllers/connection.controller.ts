@@ -31,6 +31,7 @@ import {
     slackNotificationService
 } from '@nangohq/shared';
 import { getUserAccountAndEnvironmentFromSession } from '../utils/utils.js';
+import tracer from '../apm.js';
 
 class ConnectionController {
     /**
@@ -235,6 +236,9 @@ class ConnectionController {
      */
 
     async getConnectionCreds(req: Request, res: Response, next: NextFunction) {
+        const span = tracer.startSpan('getConnectionCreds', {
+            childOf: tracer.scope().active()!
+        });
         try {
             const environmentId = getEnvironmentId(res);
             const accountId = getAccount(res);
@@ -249,11 +253,20 @@ class ConnectionController {
                 success,
                 error,
                 response: connection
-            } = await connectionService.getConnectionCredentials(accountId, environmentId, connectionId, providerConfigKey, null, action, instantRefresh);
+            } = await connectionService.getConnectionCredentials(
+                accountId,
+                environmentId,
+                connectionId,
+                providerConfigKey,
+                null,
+                action,
+                instantRefresh,
+                tracer
+            );
 
             if (!success) {
                 errorManager.errResFromNangoErr(res, error);
-
+                span.setTag('error', error);
                 return;
             }
 
@@ -270,7 +283,9 @@ class ConnectionController {
             }
 
             res.status(200).send(connection);
+            span.finish();
         } catch (err) {
+            span.finish();
             next(err);
         }
     }

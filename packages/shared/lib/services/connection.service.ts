@@ -48,6 +48,7 @@ import { Locking } from '../utils/lock/locking.js';
 import { InMemoryKVStore } from '../utils/kvstore/InMemoryStore.js';
 import { RedisKVStore } from '../utils/kvstore/RedisStore.js';
 import type { KVStore } from '../utils/kvstore/KVStore.js';
+import type { Tracer } from 'dd-trace';
 
 type KeyValuePairs = Record<string, string | boolean>;
 
@@ -305,7 +306,12 @@ class ConnectionService {
         return result[0];
     }
 
-    public async getConnection(connectionId: string, providerConfigKey: string, environment_id: number): Promise<ServiceResponse<Connection>> {
+    public async getConnection(
+        connectionId: string,
+        providerConfigKey: string,
+        environment_id: number,
+        tracer: Tracer | null = null
+    ): Promise<ServiceResponse<Connection>> {
         if (!environment_id) {
             const error = new NangoError('missing_environment');
 
@@ -336,6 +342,9 @@ class ConnectionService {
             return { success: false, error, response: null };
         }
 
+        const qSpan = tracer?.startSpan('queryConnection', {
+            childOf: tracer.scope().active()!
+        });
         const result: StoredConnection[] | null = (await schema()
             .select('*')
             .from<StoredConnection>(`_nango_connections`)
@@ -354,10 +363,17 @@ class ConnectionService {
                 providerConfigKey
             });
 
+            qSpan?.setTag('error', error);
+            qSpan?.finish();
             return { success: false, error, response: null };
         }
+        qSpan?.finish();
 
+        const dSpan = tracer?.startSpan('decryptConnection', {
+            childOf: tracer.scope().active()!
+        });
         const connection = encryptionManager.decryptConnection(storedConnection);
+        dSpan?.finish();
 
         // Parse the token expiration date.
         if (connection != null) {
@@ -544,23 +560,33 @@ class ConnectionService {
         providerConfigKey: string,
         activityLogId?: number | null,
         action?: LogAction,
-        instantRefresh = false
+        instantRefresh = false,
+        tracer: Tracer | null = null
     ): Promise<ServiceResponse<Connection>> {
+        const span = tracer?.startSpan('getConnectionCredentials', {
+            childOf: tracer.scope().active()!
+        });
         if (connectionId === null) {
             const error = new NangoError('missing_connection');
 
+            span?.setTag('error', error);
             return { success: false, error, response: null };
         }
 
         if (providerConfigKey === null) {
             const error = new NangoError('missing_provider_config');
 
+            span?.setTag('error', error);
             return { success: false, error, response: null };
         }
 
-        const { success, error, response: connection } = await this.getConnection(connectionId, providerConfigKey, environmentId);
+        const spanA = tracer?.startSpan('getConnection', {
+            childOf: tracer.scope().active()!
+        });
+        const { success, error, response: connection } = await this.getConnection(connectionId, providerConfigKey, environmentId, tracer);
 
         if (!success) {
+            span?.setTag('error', error);
             return { success, error, response: null };
         }
 
@@ -577,9 +603,15 @@ class ConnectionService {
             const environmentName = await environmentService.getEnvironmentName(environmentId);
             const error = new NangoError('unknown_connection', { connectionId, providerConfigKey, environmentName });
 
+            span?.setTag('error', error);
+            spanA?.setTag('error', error);
             return { success: false, error, response: null };
         }
+        spanA?.finish();
 
+        const spanB = tracer?.startSpan('getProviderConfig', {
+            childOf: tracer.scope().active()!
+        });
         const config: ProviderConfig | null = await configService.getProviderConfig(connection?.provider_config_key as string, environmentId);
 
         if (activityLogId) {
@@ -598,12 +630,18 @@ class ConnectionService {
             }
 
             const error = new NangoError('unknown_provider_config');
+            span?.setTag('error', error);
+            spanB?.setTag('error', error);
             return { success: false, error, response: null };
         }
+        spanB?.finish();
 
         const template: ProviderTemplate | undefined = configService.getTemplate(config?.provider as string);
 
         if (connection?.credentials?.type === ProviderAuthModes.OAuth2 || connection?.credentials?.type === ProviderAuthModes.App) {
+            const spanC = tracer?.startSpan('refreshCredentialsIfNeeded', {
+                childOf: tracer.scope().active()!
+            });
             const {
                 success,
                 error,
@@ -619,12 +657,16 @@ class ConnectionService {
             );
 
             if (!success) {
+                span?.setTag('error', error);
+                spanC?.setTag('error', error);
                 return { success, error, response: null };
             }
+            spanC?.finish();
 
             connection.credentials = credentials as OAuth2Credentials;
         }
 
+        span?.finish();
         return { success: true, error: null, response: connection };
     }
 
