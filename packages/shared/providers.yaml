@@ -1303,6 +1303,28 @@ microsoft-teams:
     refresh_params:
         grant_type: refresh_token
     docs: https://docs.nango.dev/integrations/all/microsoft-teams
+microsoft-gov-cloud:
+    categories:
+        - productivity
+        - video
+    auth_mode: OAUTH2
+    authorization_url: https://login.microsoftonline.us/common/oauth2/v2.0/authorize
+    token_url: https://login.microsoftonline.us/common/oauth2/v2.0/token
+    disable_pkce: true
+    default_scopes:
+        - offline_access
+    authorization_params:
+        response_type: code
+        response_mode: query
+        prompt: consent
+    proxy:
+        base_url: https://graph.microsoft.us
+        decompress: true
+    token_params:
+        grant_type: authorization_code
+    refresh_params:
+        grant_type: refresh_token
+    docs: https://docs.nango.dev/integrations/all/microsoft-teams
 microsoft-tenant-specific:
     categories:
         - erp
