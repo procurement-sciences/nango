@@ -1168,6 +1168,24 @@ mailchimp:
     authorization_params:
         response_type: code
     docs: https://docs.nango.dev/integrations/all/mailchimp
+microsoft:
+    categories:
+        - erp
+    auth_mode: OAUTH2
+    authorization_url: https://login.microsoftonline.${connectionConfig.domain}/${connectionConfig.tenant}/oauth2/v2.0/authorize
+    token_url: https://login.microsoftonline.${connectionConfig.domain}/${connectionConfig.tenant}/oauth2/v2.0/token
+    disable_pkce: true
+    default_scopes:
+        - offline_access
+    authorization_params:
+        response_type: code
+        response_mode: query
+        prompt: consent
+    token_params:
+        grant_type: authorization_code
+    refresh_params:
+        grant_type: refresh_token
+    docs: https://docs.nango.dev/integrations/all/microsoft-tenant-specific
 microsoft-gov-cloud:
     categories:
         - productivity
@@ -1190,13 +1208,12 @@ microsoft-gov-cloud:
     refresh_params:
         grant_type: refresh_token
     docs: https://docs.nango.dev/integrations/all/microsoft-teams
-microsoft-single-tenant:
+microsoft-gov-tenant-specific:
     categories:
-        - productivity
-        - video
+        - erp
     auth_mode: OAUTH2
-    authorization_url: https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize
-    token_url: https://login.microsoftonline.com/organizations/oauth2/v2.0/token
+    authorization_url: https://login.microsoftonline.us/${connectionConfig.tenant}/oauth2/v2.0/authorize
+    token_url: https://login.microsoftonline.us/${connectionConfig.tenant}/oauth2/v2.0/token
     disable_pkce: true
     default_scopes:
         - offline_access
@@ -1204,14 +1221,11 @@ microsoft-single-tenant:
         response_type: code
         response_mode: query
         prompt: consent
-    proxy:
-        base_url: https://graph.microsoft.com
-        decompress: true
     token_params:
         grant_type: authorization_code
     refresh_params:
         grant_type: refresh_token
-    docs: https://docs.nango.dev/integrations/all/microsoft-teams
+    docs: https://docs.nango.dev/integrations/all/microsoft-tenant-specific
 microsoft-teams:
     categories:
         - productivity
