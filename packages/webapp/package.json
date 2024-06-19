@@ -53,7 +53,7 @@
         "env-cmd": "10.1.0",
         "lodash": "4.17.21",
         "ms": "3.0.0-canary.1",
-        "postcss": "8.4.35",
+        "postcss": "8.4.36",
         "postcss-loader": "8.1.1",
         "posthog-js": "1.116.2",
         "query-string": "8.1.0",
